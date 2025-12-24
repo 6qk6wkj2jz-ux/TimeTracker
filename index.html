@@ -1,0 +1,638 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Time Tracker</title>
+
+  <meta name="theme-color" content="#0f172a" />
+  <!-- PWA -->
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="apple-touch-icon" href="./icon-192.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Time Tracker">
+
+  <style>
+    :root {
+      --bg:#0f172a;--card:#1e293b;--accent:#38bdf8;--accent-dark:#0ea5e9;
+      --text:#e5e7eb;--muted:#94a3b8;--danger:#ef4444;--radius:18px;
+    }
+    *{box-sizing:border-box;font-family:system-ui,-apple-system,BlinkMacSystemFont}
+    body{margin:0;background:var(--bg);color:var(--text);display:flex;justify-content:center;padding:calc(20px + env(safe-area-inset-top)) 12px calc(40px + env(safe-area-inset-bottom))}
+    .app{width:100%;max-width:390px}
+    h1{text-align:center;margin-bottom:20px;font-size:1.6rem}
+    .card{background:var(--card);border-radius:var(--radius);padding:18px;margin-bottom:20px}
+    label{font-size:.85rem;color:var(--muted);margin-bottom:6px;display:block}
+    input{width:100%;padding:12px 14px;border-radius:12px;border:none;outline:none;font-size:1rem;background:#020617;color:var(--text);margin-bottom:12px}
+    .row{display:flex;gap:10px}
+    .btn{flex:1;padding:16px;border-radius:20px;border:none;font-size:1.1rem;font-weight:600;cursor:pointer;background:var(--accent);color:#020617}
+    .btn.small-btn{padding:10px 12px;border-radius:16px;font-size:.95rem}
+    .btn.stop{background:var(--danger);color:white}
+    .icon-btn{width:48px;height:48px;border-radius:50%;border:none;background:var(--accent-dark);color:#020617;font-size:22px;display:flex;align-items:center;justify-content:center;margin:10px auto 20px}
+    .info p{margin:8px 0}
+    .info span{color:var(--accent);font-weight:600}
+    .footer-btn{width:100%;padding:14px;border-radius:18px;border:none;font-size:1rem;margin-top:10px;background:#334155;color:var(--text)}
+    .status{margin:10px 0;text-align:center;font-size:.9rem;color:var(--accent)}
+    .toast{position:fixed;left:50%;top:18px;transform:translateX(-50%);background:#020617cc;color:var(--text);padding:10px 14px;border-radius:14px;backdrop-filter:blur(8px);display:none;z-index:50;box-shadow:0 10px 30px rgba(0,0,0,.35)}
+    .badge{display:inline-flex;align-items:center;gap:8px;background:#020617;color:var(--text);padding:8px 12px;border-radius:999px;font-size:.9rem;border:1px solid #334155}
+    .dot{width:10px;height:10px;border-radius:50%;background:var(--danger)}
+    .modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;z-index:40}
+    .modal{width:92%;max-width:360px}
+    .modal h3{margin:0 0 10px 0}
+    .modal-actions{display:flex;gap:10px;margin-top:12px}
+  </style>
+
+  <!-- PDF -->
+  <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
+</head>
+<body>
+<div class="app">
+  <h1>⏱️ Time Tracker</h1>
+
+  <div class="card">
+    <label>Projekt Nr.</label>
+    <input id="project" />
+
+    <label>Zusatz (Minuten)</label>
+    <input id="extra" type="number" />
+
+    <label>Pause (Minuten)</label>
+    <input id="pause" type="number" />
+
+    <label>Sollzeit pro Tag (HH:MM)</label>
+    <input id="targetDay" placeholder="z. B. 08:00" />
+
+    <label>Arbeitstage/Woche</label>
+    <input id="workdays" type="number" min="1" max="7" />
+  </div>
+
+  <div class="row">
+    <button class="btn" onclick="startWork()">▶ Start</button>
+    <button class="btn stop" onclick="stopWork()">■ Stop</button>
+  </div>
+
+  <div id="status" class="status"></div>
+
+  <div style="display:flex;justify-content:center;margin:6px 0 6px">
+    <div id="runningBadge" class="badge" style="display:none"><span class="dot"></span>Zeit läuft</div>
+  </div>
+
+  <div id="toast" class="toast"></div>
+
+  <!-- Änderungs-Icon -->
+  <button class="icon-btn" onclick="editLast()" title="Eintrag ändern">✎</button>
+
+  <!-- Edit Popup -->
+  <div id="editModal" class="modal-backdrop" onclick="backdropCloseEdit(event)">
+    <div class="card modal" onclick="event.stopPropagation()">
+      <h3>Eintrag ändern</h3>
+
+      <label>Projekt Nr.</label>
+      <input id="editProject" />
+
+      <div class="row">
+        <div style="flex:1">
+          <label>Start</label>
+          <input id="editStart" type="time" />
+        </div>
+        <div style="flex:1">
+          <label>Stop</label>
+          <input id="editEnd" type="time" />
+        </div>
+      </div>
+
+      <label>Pause (Minuten)</label>
+      <input id="editPause" type="number" />
+
+      <div class="modal-actions">
+        <button class="btn" onclick="saveEdit()">Speichern</button>
+        <button class="btn stop" onclick="closeEdit()">Abbrechen</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="card info">
+    <p>Laufende Arbeitszeit: <span id="liveTimer">00:00</span></p>
+    <p>Arbeitszeit heute: <span id="workToday">00:00</span></p>
+    <p>Pause heute: <span id="pauseToday">00:00</span></p>
+    <p>Wochenbilanz: <span id="weekBalance">00:00</span></p>
+    <p>Überstunden heute: <span id="otToday">+00:00</span></p>
+    <p>Überstunden Woche: <span id="otWeek">+00:00</span></p>
+    <p>Überstunden Monat: <span id="otMonth">+00:00</span></p>
+  </div>
+
+  <button id="monthToggleBtn" class="footer-btn" onclick="toggleMonth()">Monatsübersicht</button>
+
+  <div id="monthView" class="card" style="display:none">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+      <strong id="monthTitle">Monatsübersicht</strong>
+      <div style="display:flex;gap:8px;align-items:center">
+        <button class="icon-btn" style="width:38px;height:38px;margin:0" onclick="prevMonth()" title="Vorheriger Monat">‹</button>
+        <select id="monthSelect" style="background:#020617;color:var(--text);border:1px solid #334155;border-radius:12px;padding:8px 10px">
+          <option value="01">Januar</option><option value="02">Februar</option><option value="03">März</option><option value="04">April</option>
+          <option value="05">Mai</option><option value="06">Juni</option><option value="07">Juli</option><option value="08">August</option>
+          <option value="09">September</option><option value="10">Oktober</option><option value="11">November</option><option value="12">Dezember</option>
+        </select>
+        <select id="yearSelect" style="background:#020617;color:var(--text);border:1px solid #334155;border-radius:12px;padding:8px 10px"></select>
+        <button class="icon-btn" style="width:38px;height:38px;margin:0" onclick="nextMonth()" title="Nächster Monat">›</button>
+      </div>
+    </div>
+
+    <div id="monthContent" style="margin:10px 0"></div>
+    <button class="btn stop small-btn" onclick="clearMonth()">🗑️ Monatsdaten löschen</button>
+    <button class="btn small-btn" style="margin-top:10px" onclick="exportMonthPdf()">📄 PDF Export (Monat)</button>
+  </div>
+</div>
+
+<script>
+const LS=k=>JSON.parse(localStorage.getItem(k));
+const SS=(k,v)=>localStorage.setItem(k,JSON.stringify(v));
+
+project.value=LS('project')||'';
+pause.value=LS('pause')??30;
+
+// Sollzeit/Überstunden Einstellungen
+targetDay.value=LS('targetDay') || '08:00';
+workdays.value=LS('workdays') ?? 5;
+
+project.onchange=e=>SS('project',e.target.value);
+pause.onchange=e=>SS('pause',Number(e.target.value));
+targetDay.onchange=e=>SS('targetDay', String(e.target.value || '08:00'));
+workdays.onchange=e=>SS('workdays', Number(e.target.value || 5));
+
+let liveInterval=null;
+
+function setStatus(msg){status.textContent=msg;setTimeout(()=>status.textContent='',2000)}
+function showToast(msg){
+  toast.textContent = msg;
+  toast.style.display = 'block';
+  clearTimeout(showToast._t);
+  showToast._t = setTimeout(()=> toast.style.display='none', 2000);
+}
+function setRunning(isRunning){
+  runningBadge.style.display = isRunning ? 'inline-flex' : 'none';
+}
+
+function startLiveTimer(start){
+  clearInterval(liveInterval);
+  const tick=()=>liveTimer.textContent=fmt(Math.floor((Date.now()-start)/60000));
+  tick();
+  liveInterval=setInterval(tick,60000);
+}
+function stopLiveTimer(){clearInterval(liveInterval);liveTimer.textContent='00:00'}
+
+function startWork(){
+  const start=Date.now();
+  SS('running',{start});
+  startLiveTimer(start);
+  setRunning(true);
+  showToast('✅ Gestartet');
+  setStatus('⏱️ Arbeitszeit läuft…');
+}
+
+function stopWork(){
+  const run=LS('running');
+  if(!run){
+    showToast('⚠️ Keine laufende Zeit');
+    setStatus('⚠️ Keine laufende Zeit');
+    return;
+  }
+  stopLiveTimer();
+  setRunning(false);
+
+  const startMs = run.start;
+  const endMs = Date.now();
+  const startHM = fmtHMFromMs(startMs);
+  const endHM = fmtHMFromMs(endMs);
+
+  const pauseMin = Number(pause.value||0);
+  const extraMin = Number(extra.value||0);
+
+  const minutes = calcWorkMinutesFromStartEnd(startHM, endHM, pauseMin, extraMin);
+
+  const entry={
+    date:new Date().toISOString().slice(0,10),
+    project:project.value,
+    startHM,
+    endHM,
+    startMs,
+    endMs,
+    minutes,
+    pause: pauseMin,
+    extraMin
+  };
+
+  const entries=LS('entries')||[];
+  entries.push(entry);
+  SS('entries',entries);
+
+  localStorage.removeItem('running');
+  extra.value='';
+  updateInfo();
+  showToast('✅ Gespeichert');
+  setStatus('✅ Zeit gespeichert');
+}
+
+function editLast(){
+  const entries = LS('entries') || [];
+  if(!entries.length){
+    showToast('⚠️ Kein Eintrag vorhanden');
+    return;
+  }
+  openEditAtIndex(entries.length - 1);
+}
+
+function closeEdit(){ editModal.style.display = 'none'; }
+function backdropCloseEdit(e){ if(e.target === editModal) closeEdit(); }
+
+function saveEdit(){
+  const entries = LS('entries') || [];
+  if(!entries.length) return;
+
+  const idx = Number(editModal.dataset.idx ?? (entries.length - 1));
+  const prev = entries[idx] || {};
+
+  const startHM = normTimeStr(editStart.value);
+  const endHM = normTimeStr(editEnd.value);
+  const pauseMin = Number(editPause.value || 0);
+  const extraMin = Number(prev.extraMin || 0);
+
+  entries[idx] = {
+    ...prev,
+    project: String(editProject.value || ''),
+    startHM,
+    endHM,
+    pause: pauseMin,
+    extraMin,
+    minutes: calcWorkMinutesFromStartEnd(startHM, endHM, pauseMin, extraMin),
+  };
+
+  SS('entries', entries);
+  closeEdit();
+  updateInfo();
+  showToast('✅ Eintrag geändert');
+  setStatus('✅ Eintrag aktualisiert');
+}
+
+function openMonth(){
+  monthToggleBtn.textContent='Monatsübersicht schließen';
+  monthView.style.display='block';
+
+  const now = new Date();
+  if(!monthSelect.value) monthSelect.value = String(now.getMonth()+1).padStart(2,'0');
+  if(!yearSelect.value) yearSelect.value = String(now.getFullYear());
+
+  renderSelectedMonth();
+}
+
+function toggleMonth(){
+  const isOpen = monthView.style.display === 'block';
+  if(isOpen) closeMonth(); else openMonth();
+}
+function closeMonth(){
+  monthView.style.display='none';
+  monthToggleBtn.textContent='Monatsübersicht';
+}
+
+function clearMonth(){
+  if(!confirm('Willst du wirklich ALLE gespeicherten Zeiten löschen?')) return;
+  localStorage.removeItem('entries');
+  monthContent.innerHTML='';
+  updateInfo();
+  showToast('🗑️ Monatsdaten gelöscht');
+}
+
+function fmt(m){
+  const mm = Math.max(0, Number(m||0));
+  return String(Math.floor(mm/60)).padStart(2,'0')+':'+String(mm%60).padStart(2,'0');
+}
+
+function fmtSigned(min){
+  const n = Number(min||0);
+  const sign = n >= 0 ? '+' : '-';
+  return sign + fmt(Math.abs(n));
+}
+
+function fmtHMFromMs(ms){
+  const d = new Date(ms);
+  const hh = String(d.getHours()).padStart(2,'0');
+  const mm = String(d.getMinutes()).padStart(2,'0');
+  return `${hh}:${mm}`;
+}
+
+function normTimeStr(t){
+  const s = String(t||'').trim();
+  if(!s) return '';
+  const parts = s.split(':');
+  if(parts.length >= 2){
+    const hh = String(parts[0]).padStart(2,'0');
+    const mm = String(parts[1]).padStart(2,'0');
+    return `${hh}:${mm}`;
+  }
+  return '';
+}
+
+function parseTimeToMinutes(val){
+  const s = String(val || '').trim();
+  if(!s) return 0;
+  if(s.includes(':')){
+    const [hh, mm] = s.split(':');
+    const h = Number(hh);
+    const m = Number(mm);
+    if(Number.isFinite(h) && Number.isFinite(m)) return Math.max(0, h*60 + m);
+    return 0;
+  }
+  const n = Number(s);
+  return Number.isFinite(n) ? Math.max(0, n) : 0;
+}
+
+function calcWorkMinutesFromStartEnd(startStr, endStr, pauseMin, extraMin){
+  const sMin = parseTimeToMinutes(startStr);
+  const eMin0 = parseTimeToMinutes(endStr);
+  if(!Number.isFinite(sMin) || !Number.isFinite(eMin0)) return 0;
+
+  // Mitternacht erlaubt
+  let eMin = eMin0;
+  if(eMin < sMin) eMin += 24*60;
+
+  const diff = Math.max(0, eMin - sMin);
+  const total = diff - Number(pauseMin||0) + Number(extraMin||0);
+  return Math.max(0, total);
+}
+
+function openEditAtIndex(idx){
+  const entries = LS('entries') || [];
+  if(idx < 0 || idx >= entries.length){
+    showToast('⚠️ Eintrag nicht gefunden');
+    return;
+  }
+  editModal.dataset.idx = String(idx);
+
+  const e = entries[idx];
+  editProject.value = e.project || '';
+  editStart.value = normTimeStr(e.startHM) || '';
+  editEnd.value = normTimeStr(e.endHM) || '';
+  editPause.value = Number(e.pause ?? 0);
+
+  editModal.style.display = 'flex';
+}
+
+function fmtDate(dateStr){
+  if(!dateStr) return '';
+  const [y,m,d] = dateStr.split('-');
+  return `${d}-${m}-${y.slice(2)}`;
+}
+
+function monthName(idx){
+  const names = ['Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'];
+  return names[idx] || '';
+}
+
+function initMonthSelectors(){
+  const now = new Date();
+  monthSelect.value = String(now.getMonth()+1).padStart(2,'0');
+
+  const y = now.getFullYear();
+  yearSelect.innerHTML = '';
+  for(let yy = y - 5; yy <= y + 1; yy++){
+    const opt = document.createElement('option');
+    opt.value = String(yy);
+    opt.textContent = String(yy);
+    yearSelect.appendChild(opt);
+  }
+  yearSelect.value = String(y);
+
+  monthSelect.onchange = () => renderSelectedMonth();
+  yearSelect.onchange = () => renderSelectedMonth();
+}
+
+function selectedYM(){
+  const y = String(yearSelect.value || new Date().getFullYear());
+  const m = String(monthSelect.value || String(new Date().getMonth()+1).padStart(2,'0'));
+  return `${y}-${m}`;
+}
+
+function renderSelectedMonth(){
+  monthContent.innerHTML = '';
+
+  const ym = selectedYM();
+  const y = ym.slice(0,4);
+  const m = ym.slice(5,7);
+
+  monthTitle.textContent = `Monatsübersicht – ${monthName(Number(m)-1)} ${y}`;
+
+  const all = (LS('entries')||[]);
+  const rows = all.map((e,idx)=>({e,idx})).filter(x => String(x.e.date||'').startsWith(ym));
+
+  if(!rows.length){
+    const empty=document.createElement('div');
+    empty.style.color='#94a3b8';
+    empty.style.padding='10px 0';
+    empty.textContent='Keine Einträge in diesem Monat.';
+    monthContent.appendChild(empty);
+    return;
+  }
+
+  rows.forEach(({e,idx})=>{
+    const d=document.createElement('div');
+    d.style.padding='10px 0';
+    d.style.borderBottom='1px solid #334155';
+    d.style.cursor='pointer';
+    d.innerHTML=`<strong>${fmtDate(e.date)}</strong><br>Projekt: ${e.project||'-'}<br>Start: ${e.startHM||'--:--'} · Stop: ${e.endHM||'--:--'}<br>Arbeitszeit: ${fmt(e.minutes)} · Pause: ${fmt(e.pause||0)}<div style="color:#94a3b8;font-size:.85rem;margin-top:4px">Tippen zum Bearbeiten</div>`;
+    d.onclick=()=>openEditAtIndex(idx);
+    monthContent.appendChild(d);
+  });
+}
+
+function prevMonth(){
+  let y = Number(yearSelect.value || new Date().getFullYear());
+  let m = Number(monthSelect.value || (new Date().getMonth()+1));
+  m -= 1;
+  if(m <= 0){ m = 12; y -= 1; }
+  monthSelect.value = String(m).padStart(2,'0');
+  yearSelect.value = String(y);
+  renderSelectedMonth();
+}
+
+function nextMonth(){
+  let y = Number(yearSelect.value || new Date().getFullYear());
+  let m = Number(monthSelect.value || (new Date().getMonth()+1));
+  m += 1;
+  if(m >= 13){ m = 1; y += 1; }
+  monthSelect.value = String(m).padStart(2,'0');
+  yearSelect.value = String(y);
+  renderSelectedMonth();
+}
+
+function exportMonthPdf(){
+  const jsPDF = (window.jspdf && window.jspdf.jsPDF) ? window.jspdf.jsPDF : null;
+  if(!jsPDF){
+    showToast('⚠️ PDF-Library nicht geladen');
+    return;
+  }
+
+  const ym = selectedYM();
+  const y = ym.slice(0,4);
+  const m = ym.slice(5,7);
+
+  const all = (LS('entries')||[]);
+  const monthEntries = all
+    .filter(e => String(e.date||'').startsWith(ym))
+    .map(e => ({
+      date: e.date,
+      dateDisp: fmtDate(e.date),
+      project: e.project || '-',
+      startHM: e.startHM || '',
+      endHM: e.endHM || '',
+      work: fmt(Number(e.minutes||0)),
+      pause: fmt(Number(e.pause||0)),
+      workMin: Number(e.minutes||0),
+      pauseMin: Number(e.pause||0),
+    }));
+
+  if(!monthEntries.length){
+    showToast('⚠️ Keine Einträge in diesem Monat');
+    return;
+  }
+
+  const projects = Array.from(new Set(monthEntries.map(e=>e.project).filter(Boolean)));
+  const projectLabel = projects.length === 1 ? projects[0] : (projects.length ? 'Mehrere' : '-');
+
+  const totalWorkMin = monthEntries.reduce((s,e)=>s+e.workMin,0);
+  const totalPauseMin = monthEntries.reduce((s,e)=>s+e.pauseMin,0);
+
+  const doc = new jsPDF({ orientation:'p', unit:'mm', format:'a4' });
+
+  doc.setFont('helvetica','bold');
+  doc.setFontSize(18);
+  doc.text('Arbeitszeitnachweis', 14, 18);
+
+  doc.setFont('helvetica','normal');
+  doc.setFontSize(11);
+  doc.text(`Monat: ${monthName(Number(m)-1)} ${y}`, 14, 26);
+  doc.text(`Projekt: ${projectLabel}`, 14, 32);
+
+  doc.setDrawColor(180);
+  doc.line(14, 36, 196, 36);
+
+  const head = [['Datum', 'Projekt', 'Start', 'Stop', 'Arbeitszeit', 'Pause']];
+  const body = monthEntries.map(e => [e.dateDisp, e.project, (e.startHM||'--:--'), (e.endHM||'--:--'), e.work, e.pause]);
+
+  doc.autoTable({
+    startY: 40,
+    head,
+    body,
+    theme: 'grid',
+    styles: { font: 'helvetica', fontSize: 10, cellPadding: 2.2 },
+    headStyles: { fillColor: [30, 41, 59], textColor: [229, 231, 235] },
+    margin: { left: 14, right: 14 },
+  });
+
+  const endY = doc.lastAutoTable.finalY || 40;
+
+  doc.setFont('helvetica','bold');
+  doc.setFontSize(11);
+  doc.text(`Summe Arbeitszeit: ${fmt(totalWorkMin)}`, 14, endY + 10);
+  doc.text(`Summe Pause: ${fmt(totalPauseMin)}`, 14, endY + 16);
+
+  doc.setFont('helvetica','normal');
+  doc.setFontSize(10);
+  doc.text('Unterschrift:', 14, endY + 30);
+  doc.setDrawColor(150);
+  doc.line(40, endY + 30, 196, endY + 30);
+
+  doc.setFontSize(9);
+  doc.setTextColor(100);
+  const created = new Date().toLocaleString('de-AT');
+  doc.text(`Erstellt am ${created}`, 14, 290);
+
+  const file = `Arbeitszeit_${y}-${m}_${projectLabel.replace(/[^a-zA-Z0-9_-]/g,'_')}.pdf`;
+  doc.save(file);
+
+  showToast('📄 PDF erstellt');
+  setStatus('📄 PDF Export fertig');
+}
+
+function updateInfo(){
+  const all = LS('entries') || [];
+  const now = new Date();
+  const todayStr = now.toISOString().slice(0,10);
+
+  // Soll-Einstellungen
+  const dayTargetMin = parseTimeToMinutes(targetDay.value || '08:00');
+  const workdaysPerWeek = Math.max(1, Math.min(7, Number(workdays.value || 5)));
+  const weekTargetMin = dayTargetMin * workdaysPerWeek;
+
+  // Heute
+  const t = all.filter(e => e.date === todayStr);
+  const workMin = t.reduce((s,e)=>s+Number(e.minutes||0),0);
+  const pauseMin = t.reduce((s,e)=>s+Number(e.pause||0),0);
+  workToday.textContent = fmt(workMin);
+  pauseToday.textContent = fmt(pauseMin);
+
+  // Woche (Mo–heute)
+  const day = now.getDay() || 7; // Sonntag=7
+  const monday = new Date(now);
+  monday.setHours(0,0,0,0);
+  monday.setDate(now.getDate() - day + 1);
+
+  const weekMin = all
+    .filter(e => {
+      const d = new Date(String(e.date||'') + 'T00:00:00');
+      return d >= monday && d <= now;
+    })
+    .reduce((s,e)=>s+Number(e.minutes||0),0);
+
+  weekBalance.textContent = fmt(weekMin);
+
+  // Monat (Monats-to-date: 1. bis heute)
+  const y = now.getFullYear();
+  const m = now.getMonth(); // 0-11
+  const monthStart = new Date(y, m, 1);
+  monthStart.setHours(0,0,0,0);
+
+  const monthMin = all
+    .filter(e => {
+      const d = new Date(String(e.date||'') + 'T00:00:00');
+      return d >= monthStart && d <= now;
+    })
+    .reduce((s,e)=>s+Number(e.minutes||0),0);
+
+  // Ziel-Tage im Monat (Mo–Fr) von 1. bis heute
+  let weekdayCount = 0;
+  const iter = new Date(monthStart);
+  while(iter <= now){
+    const wd = iter.getDay(); // 0 So .. 6 Sa
+    if(wd >= 1 && wd <= 5) weekdayCount++;
+    iter.setDate(iter.getDate() + 1);
+  }
+  const monthTargetMin = dayTargetMin * weekdayCount;
+
+  // Überstunden
+  otToday.textContent = fmtSigned(workMin - dayTargetMin);
+  otWeek.textContent = fmtSigned(weekMin - weekTargetMin);
+  otMonth.textContent = fmtSigned(monthMin - monthTargetMin);
+}
+
+// Restore running state
+const run=LS('running');
+if(run){
+  startLiveTimer(run.start);
+  setRunning(true);
+  setStatus('⏱️ Arbeitszeit läuft…');
+} else {
+  setRunning(false);
+}
+
+initMonthSelectors();
+updateInfo();
+if('serviceWorker' in navigator){
+  window.addEventListener('load', ()=>{
+    navigator.serviceWorker.register('./sw.js').catch(()=>{});
+  });
+}
+</script>
+</body>
+</html>
