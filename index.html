@@ -56,10 +56,20 @@
     .modal{width:92%;max-width:360px}
     .modal h3{margin:0 0 10px 0}
     .modal-actions{display:flex;gap:10px;margin-top:12px;flex-wrap:wrap}
-    .modal-actions .btn{min-width:140px}
+    .modal-actions .btn{flex:1;min-width:140px}
     .mini-btn{padding:8px 10px;border-radius:12px;border:1px solid #334155;background:#020617;color:var(--text);font-size:.9rem;cursor:pointer}
     .mini-btn:active{transform:scale(0.98)}
     .help-text{color:var(--muted);font-size:.85rem;margin-top:6px}
+    .time-grid{
+      display:flex;
+      gap:10px;
+      flex-direction:column;
+      margin-top:6px;
+    }
+.time-grid > div{flex:1}
+@media (min-width:380px){
+  .time-grid{flex-direction:row}
+}
     .modal .row{flex-wrap:wrap}
     .modal .row > div{flex:1;min-width:140px}
     .modal input[type="time"], .modal input[type="date"]{min-width:0}
@@ -204,21 +214,16 @@
       <label>Projekt Nr.</label>
       <input id="editProject" />
 
-      <div class="date-row">
-        <div>
-          <label>Datum</label>
-          <input id="editDate" type="date" />
-          <div id="editDatePretty" class="help-text"></div>
-        </div>
-        <button class="mini-btn" type="button" onclick="setEditDateToday()">Heute</button>
-      </div>
+      <label>Datum</label>
+      <input id="editDate" type="date" />
+      <div id="editDatePretty" class="help-text"></div>
 
-      <div class="row">
-        <div style="flex:1">
+      <div class="time-grid">
+        <div>
           <label>Start</label>
           <input id="editStart" type="time" />
         </div>
-        <div style="flex:1">
+        <div>
           <label>Stop</label>
           <input id="editEnd" type="time" />
         </div>
@@ -463,10 +468,6 @@ function backdropCloseEdit(e){ if(e.target === editModal) closeEdit(); }
 function syncEditDatePretty(){
   const v = String(editDate.value || '').trim();
   editDatePretty.textContent = v ? `Anzeige: ${fmtDate(v)}` : '';
-}
-function setEditDateToday(){
-  editDate.value = new Date().toISOString().slice(0,10);
-  syncEditDatePretty();
 }
 
 function openSettings(){
