@@ -48,10 +48,13 @@
     .modal{width:92%;max-width:360px}
     .modal h3{margin:0 0 10px 0}
     .modal-actions{display:flex;gap:10px;margin-top:12px}
-    .swipe-item{position:relative;overflow:hidden;border-bottom:1px solid #334155}
+    .mini-btn{padding:8px 10px;border-radius:12px;border:1px solid #334155;background:#020617;color:var(--text);font-size:.9rem;cursor:pointer}
+    .mini-btn:active{transform:scale(0.98)}
+    .help-text{color:var(--muted);font-size:.85rem;margin-top:6px}
+    .swipe-item{position:relative;overflow:hidden;border-bottom:1px solid #334155;background:var(--card)}
     .swipe-actions{position:absolute;top:0;right:0;bottom:0;width:88px;display:flex;align-items:center;justify-content:center;background:var(--danger)}
     .swipe-actions button{border:none;background:transparent;color:white;font-weight:700;font-size:1rem;cursor:pointer}
-    .swipe-content{position:relative;z-index:1;padding:10px 0;transform:translateX(0);transition:transform .15s ease}
+    .swipe-content{position:relative;z-index:1;padding:10px 0;background:var(--card);transform:translateX(0);transition:transform .15s ease}
     .swipe-item.revealed .swipe-content{transform:translateX(-88px)}
   </style>
 
@@ -120,6 +123,7 @@
 
       <div class="modal-actions">
         <button class="btn" onclick="saveSettings()">Speichern</button>
+        <button class="btn stop" onclick="clearAllData()">Alles löschen</button>
         <button class="btn stop" onclick="closeSettings()">Schließen</button>
       </div>
     </div>
@@ -133,6 +137,15 @@
 
       <label>Projekt Nr.</label>
       <input id="editProject" />
+
+      <div style="display:flex;justify-content:space-between;align-items:flex-end;gap:10px">
+        <div style="flex:1">
+          <label>Datum</label>
+          <input id="editDate" type="date" />
+          <div id="editDatePretty" class="help-text"></div>
+        </div>
+        <button class="mini-btn" type="button" onclick="setEditDateToday()">Heute</button>
+      </div>
 
       <div class="row">
         <div style="flex:1">
@@ -183,7 +196,6 @@
     </div>
 
     <div id="monthContent" style="margin:10px 0"></div>
-    <button class="btn stop small-btn" onclick="clearMonth()">🗑️ Monatsdaten löschen</button>
     <button class="btn small-btn" style="margin-top:10px" onclick="exportMonthPdf()">📄 PDF Export (Monat)</button>
   </div>
 </div>
@@ -192,6 +204,12 @@
 const LS=k=>JSON.parse(localStorage.getItem(k));
 const SS=(k,v)=>localStorage.setItem(k,JSON.stringify(v));
 // --- Swipe-to-delete helpers for Monatsübersicht ---
+function closeAllSwipes(exceptEl=null){
+  document.querySelectorAll('.swipe-item.revealed').forEach(el=>{
+    if(exceptEl && el === exceptEl) return;
+    el.classList.remove('revealed');
+  });
+}
 function deleteEntryAtIndex(idx){
   const entries = LS('entries') || [];
   if(idx < 0 || idx >= entries.length){
@@ -228,8 +246,11 @@ function attachSwipeHandlers(itemEl){
   const onEnd = (x) => {
     if(!moved) return;
     const dx = x - startX;
-    // swipe left to reveal
-    if(dx < -40) itemEl.classList.add('revealed');
+    // swipe left to reveal (and close others)
+    if(dx < -40){
+      closeAllSwipes(itemEl);
+      itemEl.classList.add('revealed');
+    }
     // swipe right to close
     if(dx > 40) itemEl.classList.remove('revealed');
   };
@@ -256,6 +277,19 @@ function attachSwipeHandlers(itemEl){
   itemEl.addEventListener('mouseup', (e)=>{ if(!mouseDown) return; mouseDown=false; onEnd(e.clientX); });
   itemEl.addEventListener('mouseleave', ()=>{ mouseDown=false; });
 }
+
+// Close revealed swipe rows when tapping outside a row
+document.addEventListener('touchstart', (e)=>{
+  if(monthView && monthView.style.display === 'block'){
+    if(!e.target.closest('.swipe-item')) closeAllSwipes();
+  }
+}, {passive:true});
+
+document.addEventListener('click', (e)=>{
+  if(monthView && monthView.style.display === 'block'){
+    if(!e.target.closest('.swipe-item')) closeAllSwipes();
+  }
+});
 
 
 project.value=LS('project')||'';
@@ -347,6 +381,15 @@ function stopWork(){
 function closeEdit(){ editModal.style.display = 'none'; }
 function backdropCloseEdit(e){ if(e.target === editModal) closeEdit(); }
 
+function syncEditDatePretty(){
+  const v = String(editDate.value || '').trim();
+  editDatePretty.textContent = v ? `Anzeige: ${fmtDate(v)}` : '';
+}
+function setEditDateToday(){
+  editDate.value = new Date().toISOString().slice(0,10);
+  syncEditDatePretty();
+}
+
 function openSettings(){
   // ensure inputs show current persisted values
   targetDay.value = LS('targetDay') || targetDay.value || '08:00';
@@ -385,14 +428,23 @@ function saveEdit(){
 
   const idx = Number(editModal.dataset.idx ?? (entries.length - 1));
   const prev = entries[idx] || {};
+  const oldYM = String(prev.date || '').slice(0,7);
 
   const startHM = normTimeStr(editStart.value);
   const endHM = normTimeStr(editEnd.value);
   const pauseMin = Number(editPause.value || 0);
   const extraMin = Number(prev.extraMin || 0);
 
+  const newDate = String(
+    editDate.value ||
+    prev.date ||
+    new Date().toISOString().slice(0,10)
+  );
+  const newYM = String(newDate || '').slice(0,7);
+
   entries[idx] = {
     ...prev,
+    date: newDate,
     project: String(editProject.value || ''),
     startHM,
     endHM,
@@ -402,6 +454,15 @@ function saveEdit(){
   };
 
   SS('entries', entries);
+  // Hinweis, wenn Eintrag in anderen Monat verschoben wurde
+  if(oldYM && newYM && oldYM !== newYM){
+    showToast('ℹ️ Eintrag in anderen Monat verschoben');
+    setStatus('ℹ️ Eintrag in anderen Monat verschoben');
+  }
+  // falls Monatsübersicht offen ist: Liste neu rendern
+  if(monthView && monthView.style.display === 'block'){
+    renderSelectedMonth();
+  }
   closeEdit();
   updateInfo();
   showToast('✅ Eintrag geändert');
@@ -428,12 +489,22 @@ function closeMonth(){
   monthToggleBtn.textContent='Monatsübersicht';
 }
 
-function clearMonth(){
-  if(!confirm('Willst du wirklich ALLE gespeicherten Zeiten löschen?')) return;
+function clearAllData(){
+  if(!confirm(
+    'Willst du wirklich ALLE gespeicherten Zeiten löschen?\n\n' +
+    'Dieser Vorgang kann nicht rückgängig gemacht werden.'
+  )) return;
+
   localStorage.removeItem('entries');
-  monthContent.innerHTML='';
+
   updateInfo();
-  showToast('🗑️ Monatsdaten gelöscht');
+
+  if(monthView && monthView.style.display === 'block'){
+    renderSelectedMonth();
+  }
+
+  showToast('🗑️ Alle Daten gelöscht');
+  setStatus('🗑️ Alle Daten gelöscht');
 }
 
 function fmt(m){
@@ -504,6 +575,8 @@ function openEditAtIndex(idx){
 
   const e = entries[idx];
   editProject.value = e.project || '';
+  editDate.value = e.date || '';
+  syncEditDatePretty();
   editStart.value = normTimeStr(e.startHM) || '';
   editEnd.value = normTimeStr(e.endHM) || '';
   editPause.value = Number(e.pause ?? 0);
@@ -583,7 +656,10 @@ function renderSelectedMonth(){
     content.className = 'swipe-content';
     content.style.cursor = 'pointer';
     content.innerHTML = `<strong>${fmtDate(e.date)}</strong><br>Projekt: ${e.project||'-'}<br>Start: ${e.startHM||'--:--'} · Stop: ${e.endHM||'--:--'}<br>Arbeitszeit: ${fmt(e.minutes)} · Pause: ${fmt(e.pause||0)}<div style=\"color:#94a3b8;font-size:.85rem;margin-top:4px\">Tippen zum Bearbeiten · nach links wischen zum Löschen</div>`;
-    content.onclick = ()=>openEditAtIndex(idx);
+    content.onclick = ()=>{
+      closeAllSwipes();
+      openEditAtIndex(idx);
+    };
 
     item.appendChild(actions);
     item.appendChild(content);
@@ -774,6 +850,7 @@ if(run){
 }
 
 initMonthSelectors();
+editDate.addEventListener('change', syncEditDatePretty);
 updateInfo();
 if('serviceWorker' in navigator){
   window.addEventListener('load', ()=>{
