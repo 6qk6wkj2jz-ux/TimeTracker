@@ -56,20 +56,29 @@
     .modal{width:calc(100% - 24px);max-width:380px;max-height:calc(100vh - 80px);overflow:auto}
     .modal h3{margin:0 0 10px 0}
     #editModal .modal{
-      padding:16px;
+      padding:14px 12px;
     }
     #editModal label{
       margin-bottom:4px;
     }
     #editModal input{
       margin-bottom:8px;
+      border-radius:14px;
+    }
+    /* Trennlinien nur im "Eintrag ändern"-Popup */
+    #editModal .edit-divider{
+      height:1px;
+      background:#334155;
+      margin:10px 0 12px;
+      border-radius:1px;
+      opacity:.9;
     }
     #editModal .modal-actions{
       margin-top:10px;
     }
 
     @media (max-width:390px){
-      #editModal .modal{padding:14px}
+      #editModal .modal{padding:12px 10px}
       #editModal input{padding:10px 12px; margin-bottom:7px}
       #editModal .modal-actions{gap:8px}
     }
@@ -244,6 +253,7 @@
       <label>Datum</label>
       <input id="editDate" type="date" />
       <div id="editDatePretty" class="help-text"></div>
+      <div class="edit-divider"></div>
 
       <div class="time-grid">
         <div>
@@ -255,6 +265,7 @@
           <input id="editEnd" type="time" />
         </div>
       </div>
+      <div class="edit-divider"></div>
 
       <label>Pause (Minuten)</label>
       <input id="editPause" type="number" />
