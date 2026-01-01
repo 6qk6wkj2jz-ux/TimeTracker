@@ -19,21 +19,28 @@
       --text:#e5e7eb;--muted:#94a3b8;--danger:#ef4444;--radius:18px;
     }
     *{box-sizing:border-box;font-family:system-ui,-apple-system,BlinkMacSystemFont}
-    body{margin:0;background:var(--bg);color:var(--text);display:flex;justify-content:center;padding:calc(20px + env(safe-area-inset-top)) 12px calc(40px + env(safe-area-inset-bottom))}
+    body{margin:0;background:var(--bg);color:var(--text);display:flex;justify-content:center;padding:calc(14px + env(safe-area-inset-top)) 12px calc(26px + env(safe-area-inset-bottom))}
     .app{width:100%;max-width:390px}
-    h1{text-align:center;margin-bottom:20px;font-size:1.6rem}
-    .card{background:var(--card);border-radius:var(--radius);padding:18px;margin-bottom:20px}
+    .topbar{display:flex;align-items:center;justify-content:center;position:relative;margin-bottom:14px}
+    .topbar h1{margin:0;font-size:1.55rem}
+    .gear-btn{position:absolute;right:0;top:50%;transform:translateY(-50%);width:40px;height:40px;border-radius:14px;border:none;background:#334155;color:var(--text);font-size:20px;display:flex;align-items:center;justify-content:center;cursor:pointer}
+    .gear-btn:active{transform:translateY(-50%) scale(0.98)}
+    .info-btn{position:absolute;left:0;top:50%;transform:translateY(-50%);width:40px;height:40px;border-radius:14px;border:none;background:#334155;color:var(--text);font-size:20px;display:flex;align-items:center;justify-content:center;cursor:pointer}
+    .info-btn:active{transform:translateY(-50%) scale(0.98)}
+    .info-text{color:var(--text);line-height:1.5}
+    .info-text a{color:var(--accent);text-decoration:none}
+    .card{background:var(--card);border-radius:var(--radius);padding:16px;margin-bottom:14px}
     label{font-size:.85rem;color:var(--muted);margin-bottom:6px;display:block}
-    input{width:100%;padding:12px 14px;border-radius:12px;border:none;outline:none;font-size:1rem;background:#020617;color:var(--text);margin-bottom:12px}
+    input{width:100%;padding:11px 14px;border-radius:12px;border:none;outline:none;font-size:1rem;background:#020617;color:var(--text);margin-bottom:10px}
     .row{display:flex;gap:10px}
-    .btn{flex:1;padding:16px;border-radius:20px;border:none;font-size:1.1rem;font-weight:600;cursor:pointer;background:var(--accent);color:#020617}
+    .btn{flex:1;padding:14px;border-radius:18px;border:none;font-size:1.05rem;font-weight:600;cursor:pointer;background:var(--accent);color:#020617}
     .btn.small-btn{padding:10px 12px;border-radius:16px;font-size:.95rem}
     .btn.stop{background:var(--danger);color:white}
     .icon-btn{width:48px;height:48px;border-radius:50%;border:none;background:var(--accent-dark);color:#020617;font-size:22px;display:flex;align-items:center;justify-content:center;margin:10px auto 20px}
     .info p{margin:8px 0}
     .info span{color:var(--accent);font-weight:600}
-    .footer-btn{width:100%;padding:14px;border-radius:18px;border:none;font-size:1rem;margin-top:10px;background:#334155;color:var(--text)}
-    .status{margin:10px 0;text-align:center;font-size:.9rem;color:var(--accent)}
+    .footer-btn{width:100%;padding:12px;border-radius:16px;border:none;font-size:1rem;margin-top:8px;background:#334155;color:var(--text)}
+    .status{margin:6px 0;text-align:center;font-size:.9rem;color:var(--accent)}
     .toast{position:fixed;left:50%;top:18px;transform:translateX(-50%);background:#020617cc;color:var(--text);padding:10px 14px;border-radius:14px;backdrop-filter:blur(8px);display:none;z-index:50;box-shadow:0 10px 30px rgba(0,0,0,.35)}
     .badge{display:inline-flex;align-items:center;gap:8px;background:#020617;color:var(--text);padding:8px 12px;border-radius:999px;font-size:.9rem;border:1px solid #334155}
     .dot{width:10px;height:10px;border-radius:50%;background:var(--danger)}
@@ -41,6 +48,11 @@
     .modal{width:92%;max-width:360px}
     .modal h3{margin:0 0 10px 0}
     .modal-actions{display:flex;gap:10px;margin-top:12px}
+    .swipe-item{position:relative;overflow:hidden;border-bottom:1px solid #334155}
+    .swipe-actions{position:absolute;top:0;right:0;bottom:0;width:88px;display:flex;align-items:center;justify-content:center;background:var(--danger)}
+    .swipe-actions button{border:none;background:transparent;color:white;font-weight:700;font-size:1rem;cursor:pointer}
+    .swipe-content{position:relative;z-index:1;padding:10px 0;transform:translateX(0);transition:transform .15s ease}
+    .swipe-item.revealed .swipe-content{transform:translateX(-88px)}
   </style>
 
   <!-- PDF -->
@@ -49,7 +61,11 @@
 </head>
 <body>
 <div class="app">
-  <h1>⏱️ Time Tracker</h1>
+  <div class="topbar">
+    <button class="info-btn" onclick="openInfo()" title="Info">ℹ️</button>
+    <h1>⏱️ Time Tracker</h1>
+    <button class="gear-btn" onclick="openSettings()" title="Einstellungen">⚙️</button>
+  </div>
 
   <div class="card">
     <label>Projekt Nr.</label>
@@ -60,12 +76,6 @@
 
     <label>Pause (Minuten)</label>
     <input id="pause" type="number" />
-
-    <label>Sollzeit pro Tag (HH:MM)</label>
-    <input id="targetDay" placeholder="z. B. 08:00" />
-
-    <label>Arbeitstage/Woche</label>
-    <input id="workdays" type="number" min="1" max="7" />
   </div>
 
   <div class="row">
@@ -81,8 +91,40 @@
 
   <div id="toast" class="toast"></div>
 
-  <!-- Änderungs-Icon -->
-  <button class="icon-btn" onclick="editLast()" title="Eintrag ändern">✎</button>
+  <!-- Info Popup -->
+  <div id="infoModal" class="modal-backdrop" onclick="backdropCloseInfo(event)">
+    <div class="card modal" onclick="event.stopPropagation()">
+      <h3>Info</h3>
+      <div class="info-text">
+        <div>Developed by Simon Kienzl</div>
+        <div>E-mail: <a href="mailto:simi.k12@gmx.at">simi.k12@gmx.at</a></div>
+      </div>
+
+      <div class="modal-actions">
+        <button class="btn" onclick="closeInfo()">Schließen</button>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- Einstellungen Popup -->
+  <div id="settingsModal" class="modal-backdrop" onclick="backdropCloseSettings(event)">
+    <div class="card modal" onclick="event.stopPropagation()">
+      <h3>Einstellungen</h3>
+
+      <label>Sollzeit pro Tag (HH:MM)</label>
+      <input id="targetDay" placeholder="z. B. 08:00" />
+
+      <label>Arbeitstage/Woche</label>
+      <input id="workdays" type="number" min="1" max="7" />
+
+      <div class="modal-actions">
+        <button class="btn" onclick="saveSettings()">Speichern</button>
+        <button class="btn stop" onclick="closeSettings()">Schließen</button>
+      </div>
+    </div>
+  </div>
+
 
   <!-- Edit Popup -->
   <div id="editModal" class="modal-backdrop" onclick="backdropCloseEdit(event)">
@@ -149,6 +191,72 @@
 <script>
 const LS=k=>JSON.parse(localStorage.getItem(k));
 const SS=(k,v)=>localStorage.setItem(k,JSON.stringify(v));
+// --- Swipe-to-delete helpers for Monatsübersicht ---
+function deleteEntryAtIndex(idx){
+  const entries = LS('entries') || [];
+  if(idx < 0 || idx >= entries.length){
+    showToast('⚠️ Eintrag nicht gefunden');
+    return;
+  }
+  if(!confirm('Diesen Eintrag wirklich löschen?')) return;
+
+  entries.splice(idx, 1);
+  SS('entries', entries);
+  showToast('🗑️ Eintrag gelöscht');
+  setStatus('🗑️ Eintrag gelöscht');
+
+  // UI aktualisieren
+  renderSelectedMonth();
+  updateInfo();
+}
+
+function attachSwipeHandlers(itemEl){
+  let startX = 0;
+  let startY = 0;
+  let moved = false;
+
+  const onStart = (x,y) => { startX = x; startY = y; moved = false; };
+
+  const onMove = (x,y) => {
+    const dx = x - startX;
+    const dy = y - startY;
+
+    // nur horizontal, sonst scrollen
+    if(Math.abs(dx) > 10 && Math.abs(dx) > Math.abs(dy)) moved = true;
+  };
+
+  const onEnd = (x) => {
+    if(!moved) return;
+    const dx = x - startX;
+    // swipe left to reveal
+    if(dx < -40) itemEl.classList.add('revealed');
+    // swipe right to close
+    if(dx > 40) itemEl.classList.remove('revealed');
+  };
+
+  itemEl.addEventListener('touchstart', (e)=> {
+    const t = e.touches[0];
+    onStart(t.clientX, t.clientY);
+  }, {passive:true});
+
+  itemEl.addEventListener('touchmove', (e)=> {
+    const t = e.touches[0];
+    onMove(t.clientX, t.clientY);
+  }, {passive:true});
+
+  itemEl.addEventListener('touchend', (e)=> {
+    const t = e.changedTouches[0];
+    onEnd(t.clientX);
+  });
+
+  // Optional: mouse support (desktop)
+  let mouseDown = false;
+  itemEl.addEventListener('mousedown', (e)=>{ mouseDown=true; onStart(e.clientX, e.clientY); });
+  itemEl.addEventListener('mousemove', (e)=>{ if(mouseDown) onMove(e.clientX, e.clientY); });
+  itemEl.addEventListener('mouseup', (e)=>{ if(!mouseDown) return; mouseDown=false; onEnd(e.clientX); });
+  itemEl.addEventListener('mouseleave', ()=>{ mouseDown=false; });
+}
+
 
 project.value=LS('project')||'';
 pause.value=LS('pause')??30;
@@ -235,17 +343,41 @@ function stopWork(){
   setStatus('✅ Zeit gespeichert');
 }
 
-function editLast(){
-  const entries = LS('entries') || [];
-  if(!entries.length){
-    showToast('⚠️ Kein Eintrag vorhanden');
-    return;
-  }
-  openEditAtIndex(entries.length - 1);
-}
 
 function closeEdit(){ editModal.style.display = 'none'; }
 function backdropCloseEdit(e){ if(e.target === editModal) closeEdit(); }
+
+function openSettings(){
+  // ensure inputs show current persisted values
+  targetDay.value = LS('targetDay') || targetDay.value || '08:00';
+  workdays.value = LS('workdays') ?? workdays.value ?? 5;
+  settingsModal.style.display = 'flex';
+}
+function closeSettings(){
+  settingsModal.style.display = 'none';
+}
+function backdropCloseSettings(e){
+  if(e.target === settingsModal) closeSettings();
+}
+function saveSettings(){
+  // persist + refresh UI
+  SS('targetDay', String(targetDay.value || '08:00'));
+  SS('workdays', Number(workdays.value || 5));
+  showToast('✅ Einstellungen gespeichert');
+  setStatus('✅ Einstellungen gespeichert');
+  updateInfo();
+  closeSettings();
+}
+
+function openInfo(){
+  infoModal.style.display = 'flex';
+}
+function closeInfo(){
+  infoModal.style.display = 'none';
+}
+function backdropCloseInfo(e){
+  if(e.target === infoModal) closeInfo();
+}
 
 function saveEdit(){
   const entries = LS('entries') || [];
@@ -436,13 +568,28 @@ function renderSelectedMonth(){
   }
 
   rows.forEach(({e,idx})=>{
-    const d=document.createElement('div');
-    d.style.padding='10px 0';
-    d.style.borderBottom='1px solid #334155';
-    d.style.cursor='pointer';
-    d.innerHTML=`<strong>${fmtDate(e.date)}</strong><br>Projekt: ${e.project||'-'}<br>Start: ${e.startHM||'--:--'} · Stop: ${e.endHM||'--:--'}<br>Arbeitszeit: ${fmt(e.minutes)} · Pause: ${fmt(e.pause||0)}<div style="color:#94a3b8;font-size:.85rem;margin-top:4px">Tippen zum Bearbeiten</div>`;
-    d.onclick=()=>openEditAtIndex(idx);
-    monthContent.appendChild(d);
+    const item = document.createElement('div');
+    item.className = 'swipe-item';
+
+    const actions = document.createElement('div');
+    actions.className = 'swipe-actions';
+    const delBtn = document.createElement('button');
+    delBtn.type = 'button';
+    delBtn.textContent = 'Löschen';
+    delBtn.onclick = (ev)=>{ ev.stopPropagation(); deleteEntryAtIndex(idx); };
+    actions.appendChild(delBtn);
+
+    const content = document.createElement('div');
+    content.className = 'swipe-content';
+    content.style.cursor = 'pointer';
+    content.innerHTML = `<strong>${fmtDate(e.date)}</strong><br>Projekt: ${e.project||'-'}<br>Start: ${e.startHM||'--:--'} · Stop: ${e.endHM||'--:--'}<br>Arbeitszeit: ${fmt(e.minutes)} · Pause: ${fmt(e.pause||0)}<div style=\"color:#94a3b8;font-size:.85rem;margin-top:4px\">Tippen zum Bearbeiten · nach links wischen zum Löschen</div>`;
+    content.onclick = ()=>openEditAtIndex(idx);
+
+    item.appendChild(actions);
+    item.appendChild(content);
+    attachSwipeHandlers(item);
+
+    monthContent.appendChild(item);
   });
 }
 
