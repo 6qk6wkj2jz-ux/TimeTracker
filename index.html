@@ -55,24 +55,42 @@
     .modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;z-index:40}
     .modal{width:calc(100% - 24px);max-width:380px;max-height:calc(100vh - 80px);overflow:auto}
     .modal h3{margin:0 0 10px 0}
+    #editModal .modal{
+      padding:16px;
+    }
+    #editModal label{
+      margin-bottom:4px;
+    }
+    #editModal input{
+      margin-bottom:8px;
+    }
+    #editModal .modal-actions{
+      margin-top:10px;
+    }
+
+    @media (max-width:390px){
+      #editModal .modal{padding:14px}
+      #editModal input{padding:10px 12px; margin-bottom:7px}
+      #editModal .modal-actions{gap:8px}
+    }
     .modal-actions{display:flex;gap:10px;margin-top:12px;flex-wrap:wrap}
     .modal-actions .btn{flex:1;min-width:140px}
     .mini-btn{padding:8px 10px;border-radius:12px;border:1px solid #334155;background:#020617;color:var(--text);font-size:.9rem;cursor:pointer}
     .mini-btn:active{transform:scale(0.98)}
     .help-text{color:var(--muted);font-size:.85rem;margin-top:6px}
-    .time-grid{
+    #editModal .time-grid{
       display:flex;
       gap:10px;
       flex-direction:column;
       margin-top:6px;
     }
-    .time-grid > div{
-      flex:1 1 160px;
+    #editModal .time-grid > div{
+      flex:0 0 auto;
       min-width:0;
     }
-    /* Erst ab etwas breiteren Displays nebeneinander – iPhones bleiben meist unter 420px */
     @media (min-width:420px){
-      .time-grid{flex-direction:row}
+      #editModal .time-grid{flex-direction:row}
+      #editModal .time-grid > div{flex:1 1 160px}
     }
     .modal .row{flex-wrap:wrap}
     .modal .row > div{flex:1;min-width:140px}
