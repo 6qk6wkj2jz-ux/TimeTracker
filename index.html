@@ -74,12 +74,26 @@
       /* überschreibt globales input-padding nur im Edit-Modal */
       padding:11px 12px;
     }
-    /* iOS date/time wirken oft "zentriert" und lassen rechts viel Platz – hier linksbündig */
+    /* iOS Date/Time Inputs reservieren oft rechts Platz (Picker-Icon). */
     #editModal input[type="date"],
     #editModal input[type="time"]{
+      -webkit-appearance:none;
+      appearance:none;
       text-align:left;
       padding-left:14px;
-      padding-right:14px;
+      padding-right:10px;
+    }
+    /* Versuche, das Picker-Icon zu verstecken (funktioniert je nach iOS-Version unterschiedlich) */
+    #editModal input[type="date"]::-webkit-calendar-picker-indicator,
+    #editModal input[type="time"]::-webkit-calendar-picker-indicator{
+      opacity:0;
+      width:0;
+      margin:0;
+    }
+    /* Entfernt zusätzlich Innenabstand, den Safari teils vergibt */
+    #editModal input[type="date"]::-webkit-date-and-time-value,
+    #editModal input[type="time"]::-webkit-date-and-time-value{
+      text-align:left;
     }
     /* Trennlinien nur im "Eintrag ändern"-Popup */
     #editModal .edit-divider{
