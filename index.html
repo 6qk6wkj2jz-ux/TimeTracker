@@ -134,7 +134,7 @@
     <div class="card modal" onclick="event.stopPropagation()">
       <h3>Einstellungen</h3>
 
-      <div class="settings-section">
+      <div class="settings-section" style="border-top:none;padding-top:0;margin-top:0">
         <strong>Änderung Zeiten</strong>
 
         <label>Sollzeit pro Tag (HH:MM)</label>
@@ -142,12 +142,11 @@
 
         <label>Arbeitstage/Woche</label>
         <input id="workdays" type="number" min="1" max="7" />
-
-        <button class="btn" style="margin-top:10px" onclick="saveSettings()">Speichern</button>
       </div>
 
       <div class="settings-section">
         <strong>Anzeige</strong>
+
         <div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px">
           <span>Überstunden anzeigen</span>
           <label class="switch">
@@ -155,11 +154,42 @@
             <span class="slider"></span>
           </label>
         </div>
+
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px">
+          <span>PDF Unterschrift</span>
+          <label class="switch">
+            <input id="togglePdfSignature" type="checkbox">
+            <span class="slider"></span>
+          </label>
+        </div>
+
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px">
+          <span>PDF Summe Pause</span>
+          <label class="switch">
+            <input id="togglePdfPauseSum" type="checkbox">
+            <span class="slider"></span>
+          </label>
+        </div>
+
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px">
+          <span>PDF kompakt</span>
+          <label class="switch">
+            <input id="togglePdfCompact" type="checkbox">
+            <span class="slider"></span>
+          </label>
+        </div>
+      </div>
+
+      <div class="settings-section">
+        <button class="btn" onclick="saveSettings()">Speichern</button>
+        <button class="btn stop" style="margin-top:8px" onclick="closeSettings()">Schließen</button>
       </div>
 
       <div class="settings-section">
         <button class="btn stop" onclick="clearAllData()">Alles löschen</button>
-        <button class="btn stop" style="margin-top:8px" onclick="closeSettings()">Schließen</button>
+        <div class="help-text" style="margin-top:8px">
+          Löscht alle gespeicherten Einträge (Zeiten) dauerhaft von diesem Gerät. Kann nicht rückgängig gemacht werden.
+        </div>
       </div>
     </div>
   </div>
@@ -334,6 +364,9 @@ pause.value=LS('pause')??30;
 targetDay.value=LS('targetDay') || '08:00';
 workdays.value=LS('workdays') ?? 5;
 toggleOvertime.checked = LS('showOvertime') !== false;
+togglePdfSignature.checked = LS('pdfSignature') !== false;
+togglePdfPauseSum.checked = LS('pdfPauseSum') !== false;
+togglePdfCompact.checked = LS('pdfCompact') === true;
 
 project.onchange=e=>SS('project',e.target.value);
 pause.onchange=e=>SS('pause',Number(e.target.value));
@@ -444,6 +477,9 @@ function saveSettings(){
   SS('workdays', Number(workdays.value || 5));
   SS('showOvertime', toggleOvertime.checked);
   applyOvertimeVisibility();
+  SS('pdfSignature', togglePdfSignature.checked);
+  SS('pdfPauseSum', togglePdfPauseSum.checked);
+  SS('pdfCompact', togglePdfCompact.checked);
   showToast('✅ Einstellungen gespeichert');
   setStatus('✅ Einstellungen gespeichert');
   updateInfo();
@@ -773,6 +809,11 @@ function exportMonthPdf(){
   const totalWorkMin = monthEntries.reduce((s,e)=>s+e.workMin,0);
   const totalPauseMin = monthEntries.reduce((s,e)=>s+e.pauseMin,0);
 
+  // PDF export toggles
+  const showSignature = LS('pdfSignature') !== false;
+  const showPauseSum = LS('pdfPauseSum') !== false;
+  const pdfCompact = LS('pdfCompact') === true;
+
   const doc = new jsPDF({ orientation:'p', unit:'mm', format:'a4' });
 
   doc.setFont('helvetica','bold');
@@ -795,7 +836,7 @@ function exportMonthPdf(){
     head,
     body,
     theme: 'grid',
-    styles: { font: 'helvetica', fontSize: 10, cellPadding: 2.2 },
+    styles: { font: 'helvetica', fontSize: pdfCompact ? 9 : 10, cellPadding: pdfCompact ? 1.6 : 2.2 },
     headStyles: { fillColor: [30, 41, 59], textColor: [229, 231, 235] },
     margin: { left: 14, right: 14 },
   });
@@ -804,14 +845,22 @@ function exportMonthPdf(){
 
   doc.setFont('helvetica','bold');
   doc.setFontSize(11);
-  doc.text(`Summe Arbeitszeit: ${fmt(totalWorkMin)}`, 14, endY + 10);
-  doc.text(`Summe Pause: ${fmt(totalPauseMin)}`, 14, endY + 16);
+  doc.text(`Summe Arbeitszeit: ${fmt(totalWorkMin)}`, 14, endY + (pdfCompact ? 8 : 10));
 
-  doc.setFont('helvetica','normal');
-  doc.setFontSize(10);
-  doc.text('Unterschrift:', 14, endY + 30);
-  doc.setDrawColor(150);
-  doc.line(40, endY + 30, 196, endY + 30);
+  let yCursor = endY + (pdfCompact ? 13 : 16);
+  if(showPauseSum){
+    doc.text(`Summe Pause: ${fmt(totalPauseMin)}`, 14, yCursor);
+    yCursor += 6;
+  }
+
+  if(showSignature){
+    doc.setFont('helvetica','normal');
+    doc.setFontSize(10);
+    yCursor += (pdfCompact ? 5 : 8);
+    doc.text('Unterschrift:', 14, yCursor);
+    doc.setDrawColor(150);
+    doc.line(40, yCursor, 196, yCursor);
+  }
 
   doc.setFontSize(9);
   doc.setTextColor(100);
