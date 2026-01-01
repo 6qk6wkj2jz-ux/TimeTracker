@@ -36,6 +36,7 @@
     .btn{flex:1;padding:14px;border-radius:18px;border:none;font-size:1.05rem;font-weight:600;cursor:pointer;background:var(--accent);color:#020617}
     .btn.small-btn{padding:10px 12px;border-radius:16px;font-size:.95rem}
     .btn.stop{background:var(--danger);color:white}
+    .btn:disabled{opacity:0.45;cursor:not-allowed;transform:none}
     .icon-btn{width:48px;height:48px;border-radius:50%;border:none;background:var(--accent-dark);color:#020617;font-size:22px;display:flex;align-items:center;justify-content:center;margin:10px auto 20px}
     .info p{margin:8px 0}
     .info span{color:var(--accent);font-weight:600}
@@ -90,7 +91,7 @@
   </div>
 
   <div class="card">
-    <label>Projekt Nr.</label>
+    <label>Projekt</label>
     <input id="project" />
 
     <label>Zusatz (Minuten)</label>
@@ -101,8 +102,8 @@
   </div>
 
   <div class="row">
-    <button class="btn" onclick="startWork()">▶ Start</button>
-    <button class="btn stop" onclick="stopWork()">■ Stop</button>
+    <button id="startBtn" class="btn" onclick="startWork()">▶ Start</button>
+    <button id="stopBtn" class="btn stop" onclick="stopWork()">■ Stop</button>
   </div>
 
   <div id="status" class="status"></div>
@@ -384,6 +385,8 @@ function showToast(msg){
 }
 function setRunning(isRunning){
   runningBadge.style.display = isRunning ? 'inline-flex' : 'none';
+  if (startBtn) startBtn.disabled = !!isRunning; // Start nur wenn NICHT läuft
+  if (stopBtn) stopBtn.disabled = !isRunning;    // Stop nur wenn LÄUFT
 }
 
 function startLiveTimer(start){
@@ -395,6 +398,13 @@ function startLiveTimer(start){
 function stopLiveTimer(){clearInterval(liveInterval);liveTimer.textContent='00:00'}
 
 function startWork(){
+    const already = LS('running');
+  if(already){
+    showToast('ℹ️ Zeit läuft bereits');
+    setStatus('ℹ️ Zeit läuft bereits');
+    setRunning(true);
+    return;
+  }
   const start=Date.now();
   SS('running',{start});
   startLiveTimer(start);
@@ -463,6 +473,12 @@ function openSettings(){
   // ensure inputs show current persisted values
   targetDay.value = LS('targetDay') || targetDay.value || '08:00';
   workdays.value = LS('workdays') ?? workdays.value ?? 5;
+
+  toggleOvertime.checked = LS('showOvertime') !== false;
+  togglePdfSignature.checked = LS('pdfSignature') !== false;
+  togglePdfPauseSum.checked = LS('pdfPauseSum') !== false;
+  togglePdfCompact.checked = LS('pdfCompact') === true;
+
   settingsModal.style.display = 'flex';
 }
 function closeSettings(){
@@ -797,6 +813,8 @@ function exportMonthPdf(){
       workMin: Number(e.minutes||0),
       pauseMin: Number(e.pause||0),
     }));
+  // PDF: always sort ascending by date (01..31)
+  monthEntries.sort((a,b)=> String(a.date||'').localeCompare(String(b.date||'')));
 
   if(!monthEntries.length){
     showToast('⚠️ Keine Einträge in diesem Monat');
