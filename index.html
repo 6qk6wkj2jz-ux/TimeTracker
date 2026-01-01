@@ -53,7 +53,7 @@
     .settings-section{border-top:1px solid #334155;padding-top:12px;margin-top:12px}
     .dot{width:10px;height:10px;border-radius:50%;background:var(--danger)}
     .modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;z-index:40}
-    .modal{width:92%;max-width:360px}
+    .modal{width:calc(100% - 24px);max-width:380px;max-height:calc(100vh - 80px);overflow:auto}
     .modal h3{margin:0 0 10px 0}
     .modal-actions{display:flex;gap:10px;margin-top:12px;flex-wrap:wrap}
     .modal-actions .btn{flex:1;min-width:140px}
@@ -66,13 +66,22 @@
       flex-direction:column;
       margin-top:6px;
     }
-.time-grid > div{flex:1}
-@media (min-width:380px){
-  .time-grid{flex-direction:row}
-}
+    .time-grid > div{
+      flex:1 1 160px;
+      min-width:0;
+    }
+    /* Erst ab etwas breiteren Displays nebeneinander – iPhones bleiben meist unter 420px */
+    @media (min-width:420px){
+      .time-grid{flex-direction:row}
+    }
     .modal .row{flex-wrap:wrap}
     .modal .row > div{flex:1;min-width:140px}
-    .modal input[type="time"], .modal input[type="date"]{min-width:0}
+    .modal input[type="time"],
+    .modal input[type="date"],
+    .modal input{
+      min-width:0;
+      max-width:100%;
+    }
     .date-row{display:flex;justify-content:space-between;align-items:flex-end;gap:10px;flex-wrap:wrap}
     .date-row > div{flex:1;min-width:180px}
     .date-row .mini-btn{height:44px}
