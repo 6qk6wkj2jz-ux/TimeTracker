@@ -71,6 +71,15 @@
     #editModal input{
       margin-bottom:8px;
       border-radius:14px;
+      /* überschreibt globales input-padding nur im Edit-Modal */
+      padding:11px 12px;
+    }
+    /* iOS date/time wirken oft "zentriert" und lassen rechts viel Platz – hier linksbündig */
+    #editModal input[type="date"],
+    #editModal input[type="time"]{
+      text-align:left;
+      padding-left:14px;
+      padding-right:14px;
     }
     /* Trennlinien nur im "Eintrag ändern"-Popup */
     #editModal .edit-divider{
@@ -1016,7 +1025,7 @@ updateInfo();
 applyOvertimeVisibility();
 if('serviceWorker' in navigator){
   window.addEventListener('load', ()=>{
-    navigator.serviceWorker.register('./sw.js').catch(()=>{});
+    navigator.serviceWorker.register('./sw.js?v=5').catch(()=>{});
   });
 }
 </script>
