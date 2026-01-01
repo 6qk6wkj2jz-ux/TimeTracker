@@ -56,6 +56,9 @@
     .modal{width:calc(100% - 24px);max-width:380px;max-height:calc(100vh - 80px);overflow:auto}
     .modal h3{margin:0 0 10px 0}
     #editModal .modal{
+      /* etwas breiter am Handy, damit Inputs näher an den Rand kommen */
+      width:calc(100% - 12px);
+      max-width:420px;
       padding:14px 12px;
     }
     #editModal label{
@@ -78,7 +81,7 @@
     }
 
     @media (max-width:390px){
-      #editModal .modal{padding:12px 10px}
+      #editModal .modal{width:calc(100% - 8px); padding:12px 10px}
       #editModal input{padding:10px 12px; margin-bottom:7px}
       #editModal .modal-actions{gap:8px}
     }
