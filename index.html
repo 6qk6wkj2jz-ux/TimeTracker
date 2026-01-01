@@ -43,6 +43,13 @@
     .status{margin:6px 0;text-align:center;font-size:.9rem;color:var(--accent)}
     .toast{position:fixed;left:50%;top:18px;transform:translateX(-50%);background:#020617cc;color:var(--text);padding:10px 14px;border-radius:14px;backdrop-filter:blur(8px);display:none;z-index:50;box-shadow:0 10px 30px rgba(0,0,0,.35)}
     .badge{display:inline-flex;align-items:center;gap:8px;background:#020617;color:var(--text);padding:8px 12px;border-radius:999px;font-size:.9rem;border:1px solid #334155}
+    .switch{position:relative;display:inline-block;width:44px;height:26px}
+    .switch input{opacity:0;width:0;height:0}
+    .slider{position:absolute;cursor:pointer;top:0;left:0;right:0;bottom:0;background:#334155;border-radius:999px;transition:.2s}
+    .slider:before{position:absolute;content:"";height:20px;width:20px;left:3px;bottom:3px;background:white;border-radius:50%;transition:.2s}
+    .switch input:checked + .slider{background:var(--accent)}
+    .switch input:checked + .slider:before{transform:translateX(18px)}
+    .settings-section{border-top:1px solid #334155;padding-top:12px;margin-top:12px}
     .dot{width:10px;height:10px;border-radius:50%;background:var(--danger)}
     .modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;z-index:40}
     .modal{width:92%;max-width:360px}
@@ -127,16 +134,32 @@
     <div class="card modal" onclick="event.stopPropagation()">
       <h3>Einstellungen</h3>
 
-      <label>Sollzeit pro Tag (HH:MM)</label>
-      <input id="targetDay" placeholder="z. B. 08:00" />
+      <div class="settings-section">
+        <strong>Änderung Zeiten</strong>
 
-      <label>Arbeitstage/Woche</label>
-      <input id="workdays" type="number" min="1" max="7" />
+        <label>Sollzeit pro Tag (HH:MM)</label>
+        <input id="targetDay" placeholder="z. B. 08:00" />
 
-      <div class="modal-actions">
-        <button class="btn" onclick="saveSettings()">Speichern</button>
+        <label>Arbeitstage/Woche</label>
+        <input id="workdays" type="number" min="1" max="7" />
+
+        <button class="btn" style="margin-top:10px" onclick="saveSettings()">Speichern</button>
+      </div>
+
+      <div class="settings-section">
+        <strong>Anzeige</strong>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px">
+          <span>Überstunden anzeigen</span>
+          <label class="switch">
+            <input id="toggleOvertime" type="checkbox">
+            <span class="slider"></span>
+          </label>
+        </div>
+      </div>
+
+      <div class="settings-section">
         <button class="btn stop" onclick="clearAllData()">Alles löschen</button>
-        <button class="btn stop" onclick="closeSettings()">Schließen</button>
+        <button class="btn stop" style="margin-top:8px" onclick="closeSettings()">Schließen</button>
       </div>
     </div>
   </div>
@@ -310,6 +333,7 @@ pause.value=LS('pause')??30;
 // Sollzeit/Überstunden Einstellungen
 targetDay.value=LS('targetDay') || '08:00';
 workdays.value=LS('workdays') ?? 5;
+toggleOvertime.checked = LS('showOvertime') !== false;
 
 project.onchange=e=>SS('project',e.target.value);
 pause.onchange=e=>SS('pause',Number(e.target.value));
@@ -418,10 +442,21 @@ function saveSettings(){
   // persist + refresh UI
   SS('targetDay', String(targetDay.value || '08:00'));
   SS('workdays', Number(workdays.value || 5));
+  SS('showOvertime', toggleOvertime.checked);
+  applyOvertimeVisibility();
   showToast('✅ Einstellungen gespeichert');
   setStatus('✅ Einstellungen gespeichert');
   updateInfo();
   closeSettings();
+}
+function applyOvertimeVisibility(){
+  const show = LS('showOvertime') !== false;
+  ['otToday','otWeek','otMonth'].forEach(id=>{
+    const el = document.getElementById(id);
+    if(el && el.parentElement){
+      el.parentElement.style.display = show ? '' : 'none';
+    }
+  });
 }
 
 function openInfo(){
@@ -864,6 +899,7 @@ if(run){
 initMonthSelectors();
 editDate.addEventListener('change', syncEditDatePretty);
 updateInfo();
+applyOvertimeVisibility();
 if('serviceWorker' in navigator){
   window.addEventListener('load', ()=>{
     navigator.serviceWorker.register('./sw.js').catch(()=>{});
