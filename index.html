@@ -47,10 +47,22 @@
     .modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;z-index:40}
     .modal{width:92%;max-width:360px}
     .modal h3{margin:0 0 10px 0}
-    .modal-actions{display:flex;gap:10px;margin-top:12px}
+    .modal-actions{display:flex;gap:10px;margin-top:12px;flex-wrap:wrap}
+    .modal-actions .btn{min-width:140px}
     .mini-btn{padding:8px 10px;border-radius:12px;border:1px solid #334155;background:#020617;color:var(--text);font-size:.9rem;cursor:pointer}
     .mini-btn:active{transform:scale(0.98)}
     .help-text{color:var(--muted);font-size:.85rem;margin-top:6px}
+    .modal .row{flex-wrap:wrap}
+    .modal .row > div{flex:1;min-width:140px}
+    .modal input[type="time"], .modal input[type="date"]{min-width:0}
+    .date-row{display:flex;justify-content:space-between;align-items:flex-end;gap:10px;flex-wrap:wrap}
+    .date-row > div{flex:1;min-width:180px}
+    .date-row .mini-btn{height:44px}
+    @media (max-width:360px){
+      .date-row > div{min-width:100%}
+      .date-row .mini-btn{width:100%}
+      .modal-actions .btn{min-width:100%}
+    }
     .swipe-item{position:relative;overflow:hidden;border-bottom:1px solid #334155;background:var(--card)}
     .swipe-actions{position:absolute;top:0;right:0;bottom:0;width:88px;display:flex;align-items:center;justify-content:center;background:var(--danger)}
     .swipe-actions button{border:none;background:transparent;color:white;font-weight:700;font-size:1rem;cursor:pointer}
@@ -138,8 +150,8 @@
       <label>Projekt Nr.</label>
       <input id="editProject" />
 
-      <div style="display:flex;justify-content:space-between;align-items:flex-end;gap:10px">
-        <div style="flex:1">
+      <div class="date-row">
+        <div>
           <label>Datum</label>
           <input id="editDate" type="date" />
           <div id="editDatePretty" class="help-text"></div>
