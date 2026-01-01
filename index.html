@@ -103,6 +103,20 @@
       border-radius:1px;
       opacity:.9;
     }
+    /* Native Date/Time Inputs (nur für Picker) – unsichtbar, aber per JS auslösbar */
+    #editModal .native-picker{
+      position:absolute;
+      width:1px;
+      height:1px;
+      opacity:0;
+      pointer-events:none;
+      left:-9999px;
+      top:auto;
+    }
+    /* Sichtbare Fake-Inputs */
+    #editModal .picker-display{
+      cursor:pointer;
+    }
     #editModal .modal-actions{
       margin-top:10px;
     }
@@ -282,18 +296,21 @@
       <input id="editProject" />
 
       <label>Datum</label>
-      <input id="editDate" type="date" />
+      <input id="editDateDisplay" class="picker-display" type="text" readonly />
+      <input id="editDate" class="native-picker" type="date" />
       <div id="editDatePretty" class="help-text"></div>
       <div class="edit-divider"></div>
 
       <div class="time-grid">
         <div>
           <label>Start</label>
-          <input id="editStart" type="time" />
+          <input id="editStartDisplay" class="picker-display" type="text" readonly />
+          <input id="editStart" class="native-picker" type="time" />
         </div>
         <div>
           <label>Stop</label>
-          <input id="editEnd" type="time" />
+          <input id="editEndDisplay" class="picker-display" type="text" readonly />
+          <input id="editEnd" class="native-picker" type="time" />
         </div>
       </div>
       <div class="edit-divider"></div>
@@ -536,7 +553,32 @@ function backdropCloseEdit(e){ if(e.target === editModal) closeEdit(); }
 
 function syncEditDatePretty(){
   const v = String(editDate.value || '').trim();
+  // sichtbares Feld (dd.mm.yyyy)
+  if(typeof editDateDisplay !== 'undefined' && editDateDisplay){
+    editDateDisplay.value = v ? v.split('-').reverse().join('.') : '';
+  }
   editDatePretty.textContent = v ? `Anzeige: ${fmtDate(v)}` : '';
+}
+
+function syncEditTimeDisplays(){
+  const s = normTimeStr(editStart.value);
+  const e = normTimeStr(editEnd.value);
+  if(typeof editStartDisplay !== 'undefined' && editStartDisplay){
+    editStartDisplay.value = s || '';
+  }
+  if(typeof editEndDisplay !== 'undefined' && editEndDisplay){
+    editEndDisplay.value = e || '';
+  }
+}
+
+function openNativePicker(el){
+  if(!el) return;
+  try{
+    if(typeof el.showPicker === 'function') el.showPicker();
+    else { el.focus(); el.click(); }
+  }catch(_){
+    try{ el.focus(); el.click(); }catch(__){}
+  }
 }
 
 function openSettings(){
@@ -748,6 +790,7 @@ function openEditAtIndex(idx){
   syncEditDatePretty();
   editStart.value = normTimeStr(e.startHM) || '';
   editEnd.value = normTimeStr(e.endHM) || '';
+  syncEditTimeDisplays();
   editPause.value = Number(e.pause ?? 0);
 
   editModal.style.display = 'flex';
@@ -1034,9 +1077,24 @@ if(run){
 }
 
 initMonthSelectors();
-editDate.addEventListener('change', syncEditDatePretty);
+editDate.addEventListener('change', ()=>{ syncEditDatePretty(); });
+editStart.addEventListener('change', ()=>{ syncEditTimeDisplays(); });
+editEnd.addEventListener('change', ()=>{ syncEditTimeDisplays(); });
+
+// Tap on visible fields opens native picker
+if(typeof editDateDisplay !== 'undefined' && editDateDisplay){
+  editDateDisplay.addEventListener('click', ()=> openNativePicker(editDate));
+}
+if(typeof editStartDisplay !== 'undefined' && editStartDisplay){
+  editStartDisplay.addEventListener('click', ()=> openNativePicker(editStart));
+}
+if(typeof editEndDisplay !== 'undefined' && editEndDisplay){
+  editEndDisplay.addEventListener('click', ()=> openNativePicker(editEnd));
+}
 updateInfo();
 applyOvertimeVisibility();
+// ensure display fields are in sync on load
+try{ syncEditDatePretty(); syncEditTimeDisplays(); }catch(_){ }
 if('serviceWorker' in navigator){
   window.addEventListener('load', ()=>{
     navigator.serviceWorker.register('./sw.js?v=5').catch(()=>{});
