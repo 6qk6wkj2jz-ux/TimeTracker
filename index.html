@@ -43,6 +43,7 @@
     .info p{margin:8px 0}
     .info span{color:var(--accent);font-weight:600}
     .footer-btn{width:100%;padding:12px;border-radius:16px;border:none;font-size:1rem;margin-top:8px;background:#334155;color:var(--text)}
+    #monthView{margin-top:14px}
     .status{margin:6px 0;text-align:center;font-size:.9rem;color:var(--accent)}
     .toast{position:fixed;left:50%;top:18px;transform:translateX(-50%);background:#020617cc;color:var(--text);padding:10px 14px;border-radius:14px;backdrop-filter:blur(8px);display:none;z-index:50;box-shadow:0 10px 30px rgba(0,0,0,.35)}
     .badge{display:inline-flex;align-items:center;gap:8px;background:#020617;color:var(--text);padding:8px 12px;border-radius:999px;font-size:.9rem;border:1px solid #334155}
@@ -66,7 +67,6 @@
     .modal{width:calc(100% - 24px);max-width:380px;max-height:calc(100vh - 80px);overflow:auto}
     .modal h3{margin:0 0 10px 0}
     #editModal .modal{
-      /* etwas breiter am Handy, damit Inputs näher an den Rand kommen */
       width:calc(100% - 12px);
       max-width:420px;
       padding:14px 12px;
@@ -81,7 +81,6 @@
     #editModal input{
       margin-bottom:8px;
       border-radius:14px;
-      /* überschreibt globales input-padding nur im Edit-Modal */
       padding:11px 12px;
     }
     /* iOS Date/Time Inputs reservieren oft rechts Platz (Picker-Icon). */
