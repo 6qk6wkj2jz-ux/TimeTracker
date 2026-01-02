@@ -51,6 +51,14 @@
     .switch input:checked + .slider{background:var(--accent)}
     .switch input:checked + .slider:before{transform:translateX(18px)}
     .settings-section{border-top:1px solid #334155;padding-top:12px;margin-top:12px}
+    /* Settings: obere Abgrenzung unter dem Titel */
+    #settingsModal .settings-top-divider{
+      height:1px;
+      background:#334155;
+      margin:10px 0 14px;
+      border-radius:1px;
+      opacity:.9;
+    }
     .dot{width:10px;height:10px;border-radius:50%;background:var(--danger)}
     .modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;z-index:40}
     .modal{width:calc(100% - 24px);max-width:380px;max-height:calc(100vh - 80px);overflow:auto}
@@ -225,6 +233,7 @@
   <div id="settingsModal" class="modal-backdrop" onclick="backdropCloseSettings(event)">
     <div class="card modal" onclick="event.stopPropagation()">
       <h3>Einstellungen</h3>
+      <div class="settings-top-divider"></div>
 
       <div class="settings-section" style="border-top:none;padding-top:0;margin-top:0">
         <strong>Änderung Zeiten</strong>
@@ -273,13 +282,26 @@
       </div>
 
       <div class="settings-section">
-        <strong>Backup</strong>
+        <strong style="display:block">Backup</strong>
 
-        <button class="btn small-btn" onclick="runManualBackup()">💾 Backup jetzt erstellen</button>
+        <div style="margin-top:10px;display:flex;flex-direction:column;gap:8px">
+          <button class="btn small-btn" onclick="runManualBackup()">💾 Backup jetzt erstellen</button>
+          <button class="btn small-btn" onclick="chooseBackupLocation()">📁 Backup-Speicherort festlegen</button>
+          <button class="btn small-btn" onclick="importBackup()">📥 Backup importieren</button>
+        </div>
 
-        <button class="btn small-btn" style="margin-top:8px" onclick="chooseBackupLocation()">📁 Backup-Speicherort festlegen</button>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:12px">
+          <span>Automatisches Backup</span>
+          <label class="switch">
+            <input id="toggleAutoBackup" type="checkbox">
+            <span class="slider"></span>
+          </label>
+        </div>
 
-        <button class="btn small-btn" style="margin-top:8px" onclick="importBackup()">📥 Backup importieren</button>
+        <div class="help-text" style="margin-top:8px">
+          Letztes Auto-Backup: <span id="lastAutoBackupText">–</span><br>
+          Nächstes Auto-Backup: <span id="nextAutoBackupText">–</span>
+        </div>
 
         <div class="help-text" style="margin-top:8px">
           Automatisches Backup täglich um 04:00 Uhr. Falls eine Zeit läuft, wird es auf den nächsten Tag verschoben.
@@ -473,11 +495,16 @@ toggleOvertime.checked = LS('showOvertime') !== false;
 togglePdfSignature.checked = LS('pdfSignature') !== false;
 togglePdfPauseSum.checked = LS('pdfPauseSum') !== false;
 togglePdfCompact.checked = LS('pdfCompact') === true;
+toggleAutoBackup.checked = LS('autoBackupEnabled') !== false;
 
 project.onchange=e=>SS('project',e.target.value);
 pause.onchange=e=>SS('pause',Number(e.target.value));
 targetDay.onchange=e=>SS('targetDay', String(e.target.value || '08:00'));
 workdays.onchange=e=>SS('workdays', Number(e.target.value || 5));
+// Auto-backup toggle: update preview text instantly (saved on "Speichern")
+if(typeof toggleAutoBackup !== 'undefined' && toggleAutoBackup){
+  toggleAutoBackup.onchange = ()=>{ try{ updateBackupStatusUI(); }catch(_){ } };
+}
 
 let liveInterval=null;
 
@@ -604,7 +631,9 @@ function openSettings(){
   togglePdfSignature.checked = LS('pdfSignature') !== false;
   togglePdfPauseSum.checked = LS('pdfPauseSum') !== false;
   togglePdfCompact.checked = LS('pdfCompact') === true;
+  toggleAutoBackup.checked = LS('autoBackupEnabled') !== false;
 
+  try{ updateBackupStatusUI(); }catch(_){ }
   settingsModal.style.display = 'flex';
 }
 function closeSettings(){
@@ -622,6 +651,8 @@ function saveSettings(){
   SS('pdfSignature', togglePdfSignature.checked);
   SS('pdfPauseSum', togglePdfPauseSum.checked);
   SS('pdfCompact', togglePdfCompact.checked);
+  SS('autoBackupEnabled', toggleAutoBackup.checked);
+  try{ updateBackupStatusUI(); }catch(_){ }
   showToast('✅ Einstellungen gespeichert');
   setStatus('✅ Einstellungen gespeichert');
   updateInfo();
@@ -1107,6 +1138,7 @@ if(typeof editEndDisplay !== 'undefined' && editEndDisplay){
 }
 updateInfo();
 applyOvertimeVisibility();
+try{ updateBackupStatusUI(); }catch(_){ }
 // ensure display fields are in sync on load
 try{ syncEditDatePretty(); syncEditTimeDisplays(); }catch(_){ }
 if('serviceWorker' in navigator){
@@ -1120,6 +1152,37 @@ if('serviceWorker' in navigator){
 
 const BACKUP_KEY = 'backupHandle';
 const AUTO_BACKUP_KEY = 'lastAutoBackup';
+
+function fmtDateTimeDE(d){
+  try{
+    return new Date(d).toLocaleString('de-AT', {year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit'});
+  }catch(_){
+    return String(d||'');
+  }
+}
+
+function computeNextAutoBackupDate(){
+  const enabled = LS('autoBackupEnabled') !== false;
+  if(!enabled) return null;
+
+  const now = new Date();
+  const target = new Date();
+  target.setHours(4,0,0,0);
+  if(now >= target) target.setDate(target.getDate()+1);
+  return target;
+}
+
+function updateBackupStatusUI(){
+  const lastTextEl = document.getElementById('lastAutoBackupText');
+  const nextTextEl = document.getElementById('nextAutoBackupText');
+  if(!lastTextEl || !nextTextEl) return;
+
+  const lastIso = LS('lastAutoBackupAt');
+  lastTextEl.textContent = lastIso ? fmtDateTimeDE(lastIso) : '–';
+
+  const next = computeNextAutoBackupDate();
+  nextTextEl.textContent = next ? fmtDateTimeDE(next) : 'deaktiviert';
+}
 
 async function getBackupData(){
   return {
@@ -1223,6 +1286,8 @@ function importBackup(){
 }
 
 function shouldRunAutoBackup(){
+  const enabled = LS('autoBackupEnabled') !== false;
+  if(!enabled) return false;
   const running = LS('running');
   if(running) return false;
   const last = LS(AUTO_BACKUP_KEY);
@@ -1241,7 +1306,10 @@ function scheduleAutoBackup(){
     if(shouldRunAutoBackup()){
       await saveBackupFile();
       SS(AUTO_BACKUP_KEY, new Date().toISOString().slice(0,10));
+      SS('lastAutoBackupAt', new Date().toISOString());
     }
+    // update status text if settings are open
+    updateBackupStatusUI();
     scheduleAutoBackup();
   }, delay);
 }
