@@ -113,15 +113,16 @@
       border-radius:1px;
       opacity:.9;
     }
-    /* Native Date/Time Inputs (nur für Picker) – unsichtbar, aber per JS auslösbar */
+    /* Native Date/Time Inputs (nur für Picker) – unsichtbar, aber klickbar (iOS-safe) */
+    #editModal .picker-wrap{position:relative}
     #editModal .native-picker{
       position:absolute;
-      width:1px;
-      height:1px;
+      inset:0;
+      width:100%;
+      height:100%;
       opacity:0;
-      pointer-events:none;
-      left:-9999px;
-      top:auto;
+      /* muss klickbar bleiben, sonst öffnet iOS den Picker nicht */
+      pointer-events:auto;
     }
     /* Sichtbare Fake-Inputs */
     #editModal .picker-display{
@@ -335,21 +336,27 @@
       <input id="editProject" />
 
       <label>Datum</label>
-      <input id="editDateDisplay" class="picker-display" type="text" readonly />
-      <input id="editDate" class="native-picker" type="date" />
+      <div class="picker-wrap">
+        <input id="editDateDisplay" class="picker-display" type="text" readonly />
+        <input id="editDate" class="native-picker" type="date" />
+      </div>
       <div id="editDatePretty" class="help-text"></div>
       <div class="edit-divider"></div>
 
       <div class="time-grid">
         <div>
           <label>Start</label>
-          <input id="editStartDisplay" class="picker-display" type="text" readonly />
-          <input id="editStart" class="native-picker" type="time" />
+          <div class="picker-wrap">
+            <input id="editStartDisplay" class="picker-display" type="text" readonly />
+            <input id="editStart" class="native-picker" type="time" />
+          </div>
         </div>
         <div>
           <label>Stop</label>
-          <input id="editEndDisplay" class="picker-display" type="text" readonly />
-          <input id="editEnd" class="native-picker" type="time" />
+          <div class="picker-wrap">
+            <input id="editEndDisplay" class="picker-display" type="text" readonly />
+            <input id="editEnd" class="native-picker" type="time" />
+          </div>
         </div>
       </div>
       <div class="edit-divider"></div>
@@ -1129,16 +1136,6 @@ editDate.addEventListener('change', ()=>{ syncEditDatePretty(); });
 editStart.addEventListener('change', ()=>{ syncEditTimeDisplays(); });
 editEnd.addEventListener('change', ()=>{ syncEditTimeDisplays(); });
 
-// Tap on visible fields opens native picker
-if(typeof editDateDisplay !== 'undefined' && editDateDisplay){
-  editDateDisplay.addEventListener('click', ()=> openNativePicker(editDate));
-}
-if(typeof editStartDisplay !== 'undefined' && editStartDisplay){
-  editStartDisplay.addEventListener('click', ()=> openNativePicker(editStart));
-}
-if(typeof editEndDisplay !== 'undefined' && editEndDisplay){
-  editEndDisplay.addEventListener('click', ()=> openNativePicker(editEnd));
-}
 updateInfo();
 applyOvertimeVisibility();
 try{ updateBackupStatusUI(); }catch(_){ }
