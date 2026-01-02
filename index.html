@@ -273,6 +273,20 @@
       </div>
 
       <div class="settings-section">
+        <strong>Backup</strong>
+
+        <button class="btn small-btn" onclick="runManualBackup()">💾 Backup jetzt erstellen</button>
+
+        <button class="btn small-btn" style="margin-top:8px" onclick="chooseBackupLocation()">📁 Backup-Speicherort festlegen</button>
+
+        <button class="btn small-btn" style="margin-top:8px" onclick="importBackup()">📥 Backup importieren</button>
+
+        <div class="help-text" style="margin-top:8px">
+          Automatisches Backup täglich um 04:00 Uhr. Falls eine Zeit läuft, wird es auf den nächsten Tag verschoben.
+        </div>
+      </div>
+
+      <div class="settings-section">
         <button class="btn" onclick="saveSettings()">Speichern</button>
         <button class="btn stop" style="margin-top:8px" onclick="closeSettings()">Schließen</button>
       </div>
@@ -1100,6 +1114,140 @@ if('serviceWorker' in navigator){
     navigator.serviceWorker.register('./sw.js?v=5').catch(()=>{});
   });
 }
+</script>
+<script>
+/* ================= BACKUP SYSTEM ================= */
+
+const BACKUP_KEY = 'backupHandle';
+const AUTO_BACKUP_KEY = 'lastAutoBackup';
+
+async function getBackupData(){
+  return {
+    meta:{
+      app:'Time Tracker',
+      version:'2.0',
+      created:new Date().toISOString()
+    },
+    data:{
+      entries: LS('entries') || [],
+      settings:{
+        project: LS('project'),
+        pause: LS('pause'),
+        targetDay: LS('targetDay'),
+        workdays: LS('workdays'),
+        showOvertime: LS('showOvertime'),
+        pdfSignature: LS('pdfSignature'),
+        pdfPauseSum: LS('pdfPauseSum'),
+        pdfCompact: LS('pdfCompact')
+      }
+    }
+  };
+}
+
+async function saveBackupFile(){
+  const data = await getBackupData();
+  const blob = new Blob([JSON.stringify(data,null,2)], {type:'application/json'});
+  const fileName = `time-tracker-backup_${new Date().toISOString().slice(0,10)}.json`;
+
+  // Try File System Access API
+  try{
+    const handle = window._backupHandle || (await getStoredBackupHandle());
+    if(handle){
+      const writable = await handle.createWritable();
+      await writable.write(blob);
+      await writable.close();
+      showToast('💾 Backup gespeichert');
+      return;
+    }
+  }catch(e){ console.warn('FS API failed, fallback to download', e); }
+
+  // Fallback: normal download
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = fileName;
+  a.click();
+  URL.revokeObjectURL(a.href);
+  showToast('💾 Backup heruntergeladen');
+}
+
+async function chooseBackupLocation(){
+  if(!window.showSaveFilePicker){
+    showToast('⚠️ Browser unterstützt keinen festen Speicherort');
+    return;
+  }
+  try{
+    const handle = await window.showSaveFilePicker({
+      suggestedName:'time-tracker-backup.json',
+      types:[{description:'JSON', accept:{'application/json':['.json']}}]
+    });
+    window._backupHandle = handle;
+    localStorage.setItem(BACKUP_KEY, JSON.stringify({}))
+    showToast('📁 Speicherort gesetzt');
+  }catch(e){ }
+}
+
+async function getStoredBackupHandle(){
+  if(!window._backupHandle) return null;
+  return window._backupHandle;
+}
+
+function runManualBackup(){
+  saveBackupFile();
+}
+
+function importBackup(){
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = '.json,application/json';
+  input.onchange = async ()=>{
+    const file = input.files[0];
+    if(!file) return;
+    try{
+      const txt = await file.text();
+      const json = JSON.parse(txt);
+      if(!json || !json.data) throw new Error('Invalid');
+
+      if(confirm('Backup importieren? Bestehende Daten werden überschrieben.')){
+        SS('entries', json.data.entries || []);
+        const s = json.data.settings || {};
+        Object.keys(s).forEach(k=> SS(k, s[k]));
+        updateInfo();
+        renderSelectedMonth();
+        showToast('📥 Backup importiert');
+      }
+    }catch(e){
+      showToast('⚠️ Ungültiges Backup');
+    }
+  };
+  input.click();
+}
+
+function shouldRunAutoBackup(){
+  const running = LS('running');
+  if(running) return false;
+  const last = LS(AUTO_BACKUP_KEY);
+  const today = new Date().toISOString().slice(0,10);
+  return last !== today;
+}
+
+function scheduleAutoBackup(){
+  const now = new Date();
+  const target = new Date();
+  target.setHours(4,0,0,0);
+  if(now >= target) target.setDate(target.getDate()+1);
+
+  const delay = target - now;
+  setTimeout(async ()=>{
+    if(shouldRunAutoBackup()){
+      await saveBackupFile();
+      SS(AUTO_BACKUP_KEY, new Date().toISOString().slice(0,10));
+    }
+    scheduleAutoBackup();
+  }, delay);
+}
+
+scheduleAutoBackup();
+/* ================= END BACKUP SYSTEM ================= */
 </script>
 </body>
 </html>
